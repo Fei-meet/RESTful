@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="jquery/jquery.js"></script>
+
+    <script>
+
+        //页面加载完毕之后马上执行逻辑
+        $(function () {
+
+            $("#btn1").click(function () {
+                // alert(1)
+                //发起异步请求--查单个
+                $.get("/employees/1", function (data) {
+                    console.log(data);
+                })
+            })
+
+            $("#btn2").click(function () {
+                //发起异步请求--查多个
+                $.get("/employees", function (data) {
+                    console.log(data);
+                })
+            })
+
+            $("#btn3").click(function () {
+                //发起异步请求--添加
+                $.post("/employees", {name:"dafei", age:18},function (data) {
+                    console.log(data);
+                })
+            })
+
+            $("#btn4").click(function () {
+                //发起异步请求--更新
+                //错误写法，没有$.put 函数
+                /*$.put("/employees", {id:1, name:"dafei", age:18},function (data) {
+                    console.log(data);
+                })*/
+
+                $.ajax({
+                    url:"/employees",
+                    type:"PUT",
+                    data:{id:1,name:"dafei", age:18},
+                    success:function (data) {
+                        console.log(data);
+                    }
+                })
+            })
+
+            $("#btn5").click(function () {
+                //发起异步请求--删除
+
+
+                $.ajax({
+                    url:"/employees",
+                    type:"DELETE",
+                    data:{id:1},
+                    success:function (data) {
+                        console.log(data);
+                    }
+                })
+            })
+        })
+    </script>
+</head>
+<body>
+
+
+<button id="btn1">查单个</button>
+<button id="btn2">查多个</button>
+<button id="btn3">添加</button>
+<button id="btn4">更新</button>
+<button id="btn5">删除</button>
+
+</body>
+</html>

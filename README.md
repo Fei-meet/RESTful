@@ -353,21 +353,555 @@ REST只是一种设计风格 , 而不是标准 , 只是提供了一组设计原�
 
 # RESTful 接口练习
 
+**构建一个标准的Springboot项目，使用web环境**
+
 ## 项目准备
+
+依赖：
+
+```xml
+ <!-- SpringBoot的依赖配置-->
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>2.4.3</version>
+    <relativePath/>
+</parent>
+
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.20</version>
+        <scope>provided</scope>
+    </dependency>
+
+
+</dependencies>
+```
+
+配置端口
+
+```java
+server.port=80
+```
+
+编辑实体类
+
+```java
+@Getter
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+public class Employee {
+    private Long id;
+    private String name;
+    private int age;
+}
+```
+
+```java
+@SpringBootApplication
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class, args);
+    }
+}
+```
+
+```java
+@Controller
+public class EmployeeController {
+}
+```
 
 ## 接口设计
 
+**1.获取所有的员工**
+
+```java
+/**
+ * 需求： 查询所有员工数据
+ * 1>请求路径:  确定资源： /employees
+ * 2>请求方式： GET
+ * 3>请求参数： 无
+ * 4>请求响应：  List<Employee> Json格式
+*/
+@RequestMapping(value = "/employees", method = RequestMethod.GET)
+@ResponseBody
+public List<Employee> list(){
+    return Arrays.asList(new Employee(1L, "dafei", 18),
+                         new Employee(2L, "xiaofei", 17) );
+}
+```
+
+测试
+
+URL：http://localhost:80/employees
+
+请求方式：GET
+
+**2.添加一个员工**
+
+```java
+/**
+ * 需求： 添加一个员工信息
+ * 1>请求路径:  确定资源： /employees
+ * 2>请求方式： POST
+ * 3>请求参数： 员工相关信息（属性）
+ * 4>请求响应：  Employee  Json格式
+*/
+@RequestMapping(value = "/employees", method = RequestMethod.POST)
+@ResponseBody
+public Employee add(Employee employee){
+    employee.setId(1L);  //假装添加到数据，新增id为1L
+    return employee;
+}
+```
+
+测试
+
+URL：http://localhost:80/employees
+
+请求方式：POST
+
+参数：name， age
+
+**3.更新员工数据**
+
+```java
+/**
+ * 需求： 更新一个员工信息
+ * 1>请求路径:  确定资源： /employees
+ * 2>请求方式： PUT
+ * 3>请求参数： 员工相关信息（属性）
+ * 4>请求响应：  Employee  Json格式
+*/
+@RequestMapping(value = "/employees", method = RequestMethod.PUT)
+@ResponseBody
+public Employee update(Employee employee){
+    employee.setName(employee.getName() + "_update");
+    return employee;
+}
+```
+
+测试
+
+URL：http://localhost:80/employees
+
+请求方式：PUT
+
+参数：id, name， age
+
+**4.删除一个员工**
+
+要求，操作成功后返回操作状态提示，需要额外定制状态封装对象(统一返回值)
+
+```java
+@Setter
+@Getter
+public class JsonResult{
+
+    private int code;  //状态码
+    private String msg;//提示信息
+    private Object data;//结果数据
+    public JsonResult(int code, String msg, Object data){
+        this.code = code;
+        this.msg = msg;
+        this.data = data;
+    }
+    public static JsonResult success(){
+        return new JsonResult(200, "操作成功", null);
+    }
+    public static JsonResult error(String msg){
+        return new JsonResult(500, msg, null);
+    }
+}
+
+```
+
+```java
+/**
+ * 需求： 删除一个员工信息
+ * 1>请求路径:  确定资源： /employees
+ * 2>请求方式： DELETE
+ * 3>请求参数： id
+ * 4>请求响应： 状态提示(成功/失败)
+*/
+@RequestMapping(value = "/employees", method = RequestMethod.DELETE)
+@ResponseBody
+public JsonResult delete(Long id){
+    return JsonResult.success();
+}
+```
+
+测试
+
+URL：http://localhost:80/employees
+
+请求方式：DELETE
+
+参数：id
+
+**5.获取某个员工的信息**
+
+```java
+/**
+ * 需求： 查询指定id的员工数据
+ * 1>请求路径:  确定资源： /employees
+ * 2>请求方式： GET
+ * 3>请求参数： id
+ * 4>请求响应：  Employee Json格式
+ */
+@RequestMapping(value = "/employees", method = RequestMethod.GET)
+@ResponseBody
+public Employee detail(Long id){
+    return new Employee(id, "dafei", 18);
+}
+```
+
+项目启动时，直接报错，说mapping映射重复
+
+分析原因
+
+```java
+    /**
+     *
+     * 查询所有员工与查询某个员工， 使用路径： /employees   使用方法： GET  都相同
+     * 此时在springmvc语法中，2个请求是不允许共存的。此时怎么办？
+     *
+     * 方案1：使用多级路径方式区分， 比如： /employees/detail
+     * 方案2：参数路径的方式
+     * 参数路径：请求映射接口中，将请求参数作为路径的一部分 
+     *    比如：/employees/{id}      {id}  路径参数的占位符
+     *    注意：客户发起请求时：
+               url路径写法： http://localhost:8080/employees/1      其中 1 是路径参数
+     *
+     * 接口想要获取路径中参数，需要使用：@PathVariable 注解
+     *   @PathVariable 作用：将url路径上参数解析并赋值到请求映射方法的形式参数
+     *   注意： 如果路径参数的占位符跟请求映射方法的形式参数名不一致，需要使用注解属性明确指定
+     *   "/employees/{eid}"    --->   @PathVariable("eid")
+     *
+     */
+```
+
+方案1：
+
+```java
+@RequestMapping(value = "/employees/detail", method = RequestMethod.GET)
+@ResponseBody
+public Employee detail(Long id){
+    return new Employee(id, "dafei", 18);
+}
+
+```
+
+测试
+
+URL：http://localhost:80/employees/detail
+
+请求方式：GET
+
+参数：id
+
+方案2：
+
+```java
+@RequestMapping(value = "/employees/{id}", method = RequestMethod.GET)
+@ResponseBody
+public Employee detail(@PathVariable Long id){
+    return new Employee(id, "dafei", 18);
+}
+```
+
+测试
+
+URL：http://localhost:80/employees/1
+
+请求方式：DELETE
+
 ## 参数路径拓展
+
+![image-20240129195928111](README.assets/image-20240129195928111.png)
 
 ## 页面请求接口
 
+**需求：页面有5个按钮，点击发起异步请求，访问对应restful接口**
+
+1>导入jquery.js
+
+2>编写info.html页面
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="js/jquery/jquery.min.js"></script>
+
+    <script>
+        $(function () {
+            $("#btn1").click(function () {
+                $.get("/employees/1",function (data) {
+                    console.log(data);
+                })
+
+            })
+
+            $("#btn2").click(function () {
+                $.get("/employees",function (data) {
+                    console.log(data);
+                })
+            })
+
+            $("#btn3").click(function () {
+
+                $.post("/employees", {name:"dafei", age:18}, function (data) {
+                    console.log(data);
+                })
+
+
+            })
+            $("#btn4").click(function () {
+
+                $.ajax({
+                    url:"/employees",
+                    type:"PUT",
+                    data:{id:1, name:"dafei", age:18},
+                    success:function (data) {
+                        console.log(data);
+                    }
+                })
+
+            })
+            $("#btn5").click(function () {
+                $.ajax({
+                    url:"/employees",
+                    type:"DELETE",
+                    data:{id:1},
+                    success:function (data) {
+                        console.log(data);
+                    }
+                })
+            })
+        })
+    </script>
+</head>
+<body>
+<button id="btn1">查单个</button><br>
+<button id="btn2">查所有</button><br>
+<button id="btn3">添加</button><br>
+<button id="btn4">更新</button><br>
+<button id="btn5">删除</button><br>
+</body>
+</html>
+```
+
+3>访问，依次点击按钮
+
+**注意**
+
+springMVC默认不支持处理put请求，需要配置处理put或patch请求方式的过滤器
+
+```xml
+<filter>
+	<filter-name>httpPutFormContentFilter</filter-name>
+	<filter-class>org.springframework.web.filter.HttpPutFormContentFilter</filter-class>
+</filter>
+
+<filter-mapping>
+	<filter-name>httpPutFormContentFilter</filter-name>
+	<servlet-name>springMVC</servlet-name>
+</filter-mapping>
+
+```
+
 # RESTful 接口简化
+
+**@RestController**
+
+由 @Controller + @ResponseBody组成，贴在controller类上面
+
+**@PathVariable**
+
+通过 @PathVariable 可以将 URL 中占位符参数绑定到控制器处理方法的入参中
+
+URL 中的 {xxx} 占位符可以通过@PathVariable(“xxx“) 绑定到操作方法的入参中。
+
+贴在请求映射方法参数上
+
+**@GetMapping **
+贴在请求映射方法上，等价于：@RequestMapping(method = RequestMethod.GET)
+
+**@PostMapping **
+
+贴在请求映射方法上，等价于：@RequestMapping(method = RequestMethod.POST)
+
+**@PutMapping **
+
+贴在请求映射方法上，等价于：@RequestMapping(method = RequestMethod.PUT)
+
+**@DeleteMapping **
+
+贴在请求映射方法上，等价于：@RequestMapping(method = RequestMethod.DELETE)
+
+```java
+@RestController  //等价于：@ResponseBody + @Controller
+@RequestMapping("employees")
+public class EmployeeController {
+    @GetMapping
+    public List<Employee> list(){
+        return Arrays.asList(new Employee(1L, "dafei", 18),
+                new Employee(2L, "xiaofei", 17) );
+    }
+    @GetMapping("/{id}")
+    public Employee detail(@PathVariable Long id){
+        return new Employee(id, "dafei", 18);
+    }
+    @PostMapping
+    public Employee add(Employee employee){
+        employee.setId(1L);
+        return employee;
+    }
+    @PutMapping
+    public Employee update(Employee employee){
+        employee.setName(employee.getName() + "_update");
+        return employee;
+    }
+    @DeleteMapping
+    public JsonResult delete(Long id){
+        return JsonResult.success();
+    }
+}
+
+```
 
 # RequestMapping 注解属性
 
+**value/path**：映射路径；
+**method**：限定请求的方式，枚举：
+
+```java
+public enum RequestMethod {
+    GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS, TRACE
+}
+```
+
+**params**：限定要处理请求的参数，只有匹配该参数的请求，才会被该方法处理；
+
+```java
+/**
+ * @RequestMapping(value = "/test", params = {"name"})  要求请求必须带上name参数
+ * @RequestMapping(value = "/test", params = {"name=dafei"})  要求请求必须带上name参数，并且值为dafei
+ */
+@RequestMapping(value = "/test", params = {"name=dafei"})
+@ResponseBody
+public String test(){
+}    
+```
+
+**headers**：限定要处理请求的请求头信息，只有匹配该请求头内容的请求，才会被该方法处理；
+
+```java
+@RequestMapping(value = "/test2", headers = {"accept=application/json"})
+@ResponseBody
+public String test2(){
+    return "ok--json";
+}
+
+@RequestMapping(value = "/test2", headers = {"content-type=application/xml"})
+@ResponseBody
+public String test3(){
+    return "ok--xml";
+}
+```
+
+**consumes**：限定要处理请求的请求头信息，明确指定客户端携带参数类型
+
+```java
+//等价于：@RequestMapping(value = "/test2", headers = {"content-type=application/json"})
+@RequestMapping(value = "/test2", consumes = {"application/json"})
+@ResponseBody
+public String test4(){
+    return "ok--json";
+}
+```
+
+**produces**：限定要处理请求的请求头信息，明确指定客户端希望服务端响应会指定参数类型
+
+```java
+//等价于：@RequestMapping(value = "/test2", headers = {"accept=application/json"})
+@RequestMapping(value = "/test2", produces = {"application/json"})
+@ResponseBody
+public String test5(){
+    return "ok--json";
+}
+```
+
 # 总结
+
+**1>请求路径**
+
+确定具体操作资源，结合需求，可以适当加路径前后缀，或者使用参数路径方式
+
+**2>请求方法**
+
+根据接口实际功能，针对资源的CRUD找合适方法
+
+资源从无到有：POST
+
+资源从有到无：DELETE
+
+资源从A状态到B状态：PUT
+
+资源状态不改变：GET
+
+**3>请求参数**
+
+根据接口实现功能按需传入参数
+
+**4>请求响应**
+
+根据接口实现，客户端调用要求，决定具体返回值，建议使用JSON格式。
+
+
+
+**总结一句话：RESTful是一种接口设计风格，建议你遵守，开发中在遵守大前提下，结合实际灵活处理。**
 
 #课后练习
 
 
 
+查询某个部门下的所有员工
+
+> /departments/{id}/employees
+
+查询所有员工工资集合
+
+> /employees/salaries
+
+查询某个员工某个月工资
+
+> /employees/{id}/salaries/{month}
+
+用户登录操作
+
+> /users/login   --POST
+
+用户注销操作
+
+> /users/logout --DELETE
+
+按照用户名查询
+
+> /users/{name}
+
+按照年龄查询
+
+> /users/{age}
