@@ -1,6 +1,6 @@
 # README
 
-**The project has stopped being updated**
+**The project has stopped being updated** 🚫🚫🚫
 
 This tutorial is an introduction to the restful code style and only introduces restful knowledge and a practical restful project using spring boot(Create a simple employee management system).
 
